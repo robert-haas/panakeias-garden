@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Derivation graph</title>
+    
+    <!-- external CSS -->
+    <link href="lib/fancygrid/fancy.min.css" rel="stylesheet">
+    
+    <!-- external JavaScript -->
+    <script src="lib/jquery/jquery.min.js"></script>
+    <script src="lib/d3/d3.v4.min.js"></script>
+    <script src="lib/fancygrid/fancy.full.min.js"></script>
+  </head>
+  <body>
+    <div id="grid" style="height:400px"></div>
+    
+    <script>
+      var cellWidth = 100;
+
+      d3.csv('table.csv', function(data) {
+        // Find column names
+        var column_names = d3.keys(data[0]);
+        
+        // Find numerical column names
+        function isNumber(obj) {
+          // Check if a string is a number
+          // https://stackoverflow.com/questions/175739/is-there-a-built-in-way-in-javascript-to-check-if-a-string-is-a-valid-number
+          // https://api.jquery.com/jQuery.isNumeric/
+          return $.isNumeric(obj)
+        }
+        function isImage(obj) {
+          return obj.match(/\.(jpeg|jpg|gif|png|svg)$/) != null;
+        }
+        var numerical_column_names = Array();
+        var non_numerical_column_names = Array();
+        var image_column_names = Array();
+        var text_column_names = Array();
+        firstRow = data[0];
+        for(var column_name of column_names){
+          firstEntry = firstRow[column_name];
+          if (isNumber(firstEntry)) {
+            numerical_column_names.push(column_name);
+          } else {
+            non_numerical_column_names.push(column_name);
+            if (isImage(firstEntry)) {
+              image_column_names.push(column_name);
+            } else {
+              text_column_names.push(column_name);
+            }
+          }
+        }
+        
+        // Create column array for FancyGrid
+        var numerical_columns = numerical_column_names.map(function(name,i) {
+          return {
+            index: name,
+            title: name,
+            sortable: true,
+            editable: true,
+            resizable: true,
+            type: 'number',
+            minWidth: cellWidth
+          }
+        });
+        var image_columns = image_column_names.map(function(name,i) {
+          return {
+            index: name,
+            title: name,
+            sortable: true,
+            editable: true,
+            resizable: true,
+            type: 'text',
+            minWidth: cellWidth,
+            cls: 'molecule-depiction',
+            render: function(o) {
+              o.value = '<object data="'+o.value+'" type="image/svg+xml" style="max-height:60;" width=60></object>';
+              return o;
+            }
+          }
+        });
+        var text_columns = text_column_names.map(function(name,i) {
+          return {
+            index: name,
+            title: name,
+            sortable: true,
+            editable: true,
+            resizable: true,
+            type: 'text',
+            minWidth: cellWidth
+          }
+        });
+        columns = image_columns.concat(text_columns).concat(numerical_columns);
+        
+        // Generate FancyGrid table
+        // https://fancygrid.com/docs/
+        // http://jsfiddle.net/gh/get/jquery/1.9.1/FancyGrid/FancyGrid-Samples/tree/master/jsfiddle/grid/columns/column-image-text
+        // http://jsfiddle.net/gh/get/jquery/1.9.1/FancyGrid/FancyGrid-Samples/tree/master/jsfiddle/grid/paging/basic-paging
+        // http://jsfiddle.net/gh/get/jquery/1.9.1/FancyGrid/FancyGrid-Samples/tree/master/jsfiddle/grid/edit/cell
+        new FancyGrid({
+          height: 'fit',
+          width: 'fit',
+          cellHeight: 75,
+          paging: {
+            pageSize: 10,
+            pageSizeData: [5,10,20,50, 100]
+          },
+          trackOver: true,
+          columnLines: false,
+          //width: columns.length*cellWidth,
+          //height: 400,
+          renderTo: 'grid',
+          theme: 'blue',
+          clicksToEdit: 1,
+          tbar: [{
+            type: 'search',
+            width: 400,
+            emptyText: 'Search',
+            paramsMenu: true,
+            paramsText: 'Parameters'
+          }],
+          data: data,
+          columns: columns,
+          
+          /*footer: {
+            status: 'My Footer Text',
+            source: {
+              text: "My Source",
+              link: 'http://www.spiegel.de'
+            }
+          }*/
+        });
+      });
+    </script>
+  </body>
+</html>

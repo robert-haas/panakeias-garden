@@ -1,0 +1,89 @@
+<!doctype html>
+<head>
+    <meta content="text/html;charset=utf-8" http-equiv="Content-Type">
+    <meta content="utf-8" http-equiv="encoding">
+</head>
+
+<style>
+.pc {
+  font-size: 6px;
+}
+</style>
+
+<script src="lib/d3/d3.v3.min.js"></script>
+<script src="lib/parcoords/d3.parcoords.modified.js"></script>
+<script src="lib/parcoords/sylvester.js"></script>
+<link rel="stylesheet" type="text/css" href="lib/parcoords/d3.parcoords.css">
+
+<body>
+
+<div id="pc" class="parcoords" style="height:400px"></div>
+<div>
+<button type="button" id="resetButton" onclick="resetButtonOnClick()"> Reset </button>
+
+</body>
+
+<script>
+var cellWidth = 100;
+var parallelCoordinatesSpacing = 50;
+
+var parcoords = d3.parcoords()("#pc")
+  .alpha(0.4);
+
+d3.csv('table.csv', function(data) {
+  // Find column names
+  var column_names = d3.keys(data[0]);
+  
+  // Find numerical column names
+  function isNumber(obj) {
+    return !isNaN(parseFloat(obj))
+  }
+  function isImage(obj) {
+    return obj.match(/\.(jpeg|jpg|gif|png|svg)$/) != null;
+  }
+  var numerical_column_names = Array();
+  var non_numerical_column_names = Array();
+  firstRow = data[0];
+  for(var column_name of column_names){
+    firstEntry = firstRow[column_name];
+    if (isNumber(firstEntry)) {
+      numerical_column_names.push(column_name);
+    } else {
+      non_numerical_column_names.push(column_name);
+    }
+  }
+  
+  // https://github.com/syntagmatic/parallel-coordinates#parallel-coordinates
+  parcoords
+    .width(numerical_column_names.length*parallelCoordinatesSpacing)
+    .height(400)
+    /*
+    .margin({
+      top: 10,
+      left: 10,
+      right: 10,
+      bottom: 10
+    })
+    */
+    .mode('queue')
+    .rate(25) // lines drawn each frame with rendering mode 'queue' -> 12-30 for phones
+    .data(data)
+    .detectDimensions()
+    .hideAxis(non_numerical_column_names)
+    //.on('brush', brushedItems)
+    //.smoothness(.2)  // requires sylvester.js
+    .render()
+    
+    //.alphaOnBrushed(0.4)
+    .shadows()
+    .brushedColor("red")
+    .reorderable()
+    .axisDots(size=4)
+    .brushMode('1D-axes'); // 2D-strums 1D-axes-multi angular
+});
+
+
+function resetButtonOnClick() {
+  parcoords.brushReset();
+}
+</script>
