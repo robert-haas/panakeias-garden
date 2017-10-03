@@ -8,15 +8,13 @@ The primary intent of this project is to strengthen the connection between [meta
 
 ### Pre-release software demonstrations
 
-- <a href="todo"> Construction of geldanamycin </a>
+- <a href="https://cdn.rawgit.com/robert-haas/panakeias-garden/aa733a49/prerelease/sites/progeldanamycin/notebook.html"> Construction of geldanamycin </a>
   
-  <a href="todo"> <img src="prerelease/images/geldanamycin_small.png" width=200> </a>
+  <a href="https://cdn.rawgit.com/robert-haas/panakeias-garden/aa733a49/prerelease/sites/progeldanamycin/notebook.html"> <img src="prerelease/images/geldanamycin_small.png" width=200> </a>
   
-- <a href="todo"> Generation of a subspace of linear polyketides </a>
+- <a href="https://cdn.rawgit.com/robert-haas/panakeias-garden/aa733a49/prerelease/sites/linear_polyketides/notebook.html"> Generation of a subspace of linear polyketides </a>
 
-  <a href="todo"> <img src="prerelease/images/linear_polyketides_small.png" width=200> </a>
-
-- <a href="todo">  Deconstruction of erythromycin into its building blocks </a>
+  <a href="https://cdn.rawgit.com/robert-haas/panakeias-garden/aa733a49/prerelease/sites/linear_polyketides/notebook.html"> <img src="prerelease/images/linear_polyketides_small.png" width=200> </a>
 
 ### Poster
 

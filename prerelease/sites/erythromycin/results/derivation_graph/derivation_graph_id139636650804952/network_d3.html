@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Derivation graph</title>
+    
+    <!-- external CSS -->
+    <link rel="stylesheet" href="lib/bootstrap/bootstrap.v3.min.css">
+    <link rel="stylesheet" href="lib/jquery/jquery.minicolors.css">
+    <link rel="stylesheet" href="lib/spectrum/spectrum.css">
+    
+    <!-- inline CSS -->
+    <style>
+      .sp-container {
+        border: none;
+        box-shadow: 0 0 .8em #aaa;
+      }
+      .sp-dd {
+        color: white;
+      }
+      .sp-replacer {
+        background: transparent;
+        border-color: #607c82;
+      }
+      .sp-replacer:hover,
+      .sp-replacer.sp-active {
+        border-color: #ffffff;
+      }
+      
+      body {
+        padding-top: 50px;
+      }
+      html, body {
+        height: 100%;
+      }
+      .collapsed {
+        display: none;
+      }
+      
+      #row-main {
+        background-color: #222;
+        min-height: 80%;
+        height: 80%;
+      }
+      .navbar {
+        background-color: #222;
+        color: white;
+      }
+      #column-sidebar {
+        background-color: #222;
+        color: white;
+      }
+      #column-main {
+        background-color: white;
+        padding-left: 0;
+        padding-right: 0;
+        margin: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Bootstrap container start -->
+    <div class="container-fluid">
+      <!-- Navbar start -->
+      <nav class="navbar navbar-fixed-top">   <!-- navbar-inverse -->
+        <div class="container-fluid">
+          <button type="button" class="btn btn-default navbar-btn"
+                  onClick="window.location.reload()">Reset</button>
+          <button type="button" class="btn btn-default navbar-btn"
+                  data-toggle="tooltip" title="Get a copy of the current screen elements."
+                  onclick="exportAsSvg()">Download as SVG</button>
+          <button type="button" class="btn btn-default navbar-btn toggle-sidebar">Toggle sidebar</button>
+        </div>
+      </nav>
+      <!-- Navbar end -->
+      
+      <div class="row" id="row-main">
+        <!-- Main area start -->
+        <div class="col-xs-10" id="column-main">
+          <div id="d3-drawing-area" align="center"> </div>
+        </div>
+        <!-- Main area end -->
+        
+        <!-- Sidebar start -->
+        <div class="col-xs-2" id="column-sidebar">
+          <p>Molecule nodes</p>
+          <div class="container">
+            <form>
+              <div class="form-check">
+                <label class="form-check-label">
+                  <input type="checkbox" id="resize" class="form-check-input" checked>
+                  Resize
+                </label>
+              </div>
+              <div class="form-check">
+                <label class="form-check-label">
+                  <input type="checkbox" id="sticky" class="form-check-input" checked>
+                  Sticky
+                </label>
+              </div>
+              
+              <input type="text" id="colorpicker-network-graph-nodes" value="#ffffff"/>
+            </form>
+          </div>
+          
+          <hr>
+          <p>Reaction nodes</p>
+          <div class="container">
+            <form>
+              <input type="text" id="colorpicker-network-hyperedge-nodes" value="#ffffff"/>
+            </form>
+          </div>
+          
+          <hr>
+          <p>Edges</p>
+          <div class="container">
+            <form>
+              <input type="text" id="colorpicker-network-edges" value="#ffffff"/>
+            </form>
+          </div>
+          
+          <hr>
+          <p>Background</p>
+          <div class="container">
+            <form>
+              <input type="text" id="colorpicker-network-background" value="#ffffff"/>
+            </form>
+          </div>
+        </div>
+        <!-- Sidebar end -->
+      </div>
+    </div>
+    <!-- Bootstrap container end -->
+    
+    <!-- external JavaScript -->
+    <!-- Order: https://getbootstrap.com/docs/4.0/getting-started/introduction/ -->
+    <script src="lib/jquery/jquery.min.js"></script>
+    <script src="lib/bootstrap/bootstrap.v3.min.js"></script>
+    <script src="lib/d3/d3.v4.min.js"></script>
+    <script src="lib/jquery/jquery.minicolors.min.js"></script>
+    <script src="lib/spectrum/spectrum.js"></script>
+    
+    <!-- inline JavaScript -->
+    <script>
+      // Collapsible sidebar from
+      // http://www.broculos.net/2015/08/how-to-build-collapsible-sidebars-with.html
+      $(document).ready(function () {
+        $(".toggle-sidebar").click(function () {
+          $("#column-main").toggleClass("col-xs-12 col-xs-10");
+          $("#column-sidebar").toggleClass("collapsed");
+          setPlotSize();
+          return false;
+        });
+      });
+    </script>
+    
+    
+    <script>
+      // https://bgrins.github.io/spectrum/
+      // http://www.lugolabs.com/articles/71-how-to-use-a-color-picker-in-javascript
+      $("#colorpicker-network-graph-nodes").spectrum({
+        showInitial: true,
+        showInput: true,
+        showAlpha: false,
+        preferredFormat: "hex",
+        showButtons: true,
+        chooseText: "Apply",
+        cancelText: "Discard",
+        showPalette: false,
+        selectionPalette: ["white", "gray", "black"],
+        hideAfterPaletteSelect:true,
+        change: function(tinycolor) {
+          d3.selectAll(".network-graph-node-circle").style("fill", tinycolor);
+        }
+      });
+      $("#colorpicker-network-hyperedge-nodes").spectrum({
+        showInitial: true,
+        showInput: true,
+        showAlpha: false,
+        preferredFormat: "hex",
+        showButtons: true,
+        chooseText: "Apply",
+        cancelText: "Discard",
+        change: function(tinycolor) {
+          d3.selectAll(".network-hyperedge-node-rect").style("fill", tinycolor);
+        }
+      });
+      $("#colorpicker-network-edges").spectrum({
+        showInitial: true,
+        showInput: true,
+        showAlpha: false,
+        preferredFormat: "hex",
+        showButtons: true,
+        chooseText: "Apply",
+        cancelText: "Discard",
+        change: function(tinycolor) {
+          d3.selectAll(".network-edge-line").style("stroke", tinycolor);
+        }
+      });
+      $("#colorpicker-network-background").spectrum({
+        showInitial: true,
+        showInput: true,
+        showAlpha: false,
+        preferredFormat: "hex",
+        showButtons: true,
+        chooseText: "Apply",
+        cancelText: "Discard",
+        change: function(tinycolor) {
+          d3.selectAll("#network-area-background").style("fill", tinycolor);
+        }
+      });
+      
+      
+      function exportAsSvg() {
+        var svgData = $("#network-area")[0].outerHTML;
+        var svgBlob = new Blob([svgData], {type:"image/svg+xml;charset=utf-8"});
+        var svgUrl = URL.createObjectURL(svgBlob);
+        var downloadLink = document.createElement("a");
+        downloadLink.href = svgUrl;
+        downloadLink.download = "network_visualization.svg";
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+        
+        /*
+        var svgData = $("#descriptorArea")[0].outerHTML;
+        var svgBlob = new Blob([svgData], {type:"image/svg+xml;charset=utf-8"});
+        var svgUrl = URL.createObjectURL(svgBlob);
+        var downloadLink = document.createElement("a");
+        downloadLink.href = svgUrl;
+        downloadLink.download = "network_visualization.svg";
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+        */
+      }
+    </script>
+    
+    <script>
+      // Determine available display area
+      //var displayWidth = window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth;
+      //var displayHeight = window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight;
+      
+      
+      var displayDimensions, displayWidth, displayHeight, drawingAreaWidthMin, drawingAreaHeightMin,
+          drawingAreaWidth, drawingAreaHeight, networkAreaWidth, networkAreaHeight,
+          descriptorAreaWidth, descriptorAreaHeight;
+      
+      var div, networkArea, networkAreaBackground, networkAreaContent, descriptorArea,
+          descriptorAreaBackground;
+      
+      // Select and initialize drawing areas
+      div = d3.select("#d3-drawing-area").style("background", "transparent");
+      networkArea = div.append("svg").attr("id", "network-area");
+      networkAreaBackground = networkArea.append("rect")
+          .attr("id", "network-area-background");
+          
+      
+      function setPlotSize() {
+        function getBootstrapColumnDimensions(id) {
+          var bb = document.querySelector(id).getBoundingClientRect();
+          var calcHeight = window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight;
+          calcHeight = calcHeight - 50;
+          var dimensions = {
+            width : bb.right - bb.left,
+            height : calcHeight //bb.top - bb.bottom
+          }
+          return dimensions;
+        }
+      
+        displayDimensions = getBootstrapColumnDimensions("#column-main");
+        displayWidth = displayDimensions.width;
+        displayHeight = displayDimensions.height;
+        
+        // Determine drawing areas and margin, inspired by convention from https://bl.ocks.org/mbostock/3019563
+        drawingAreaWidthMin = 500;
+        drawingAreaHeightMin = 300;
+        margin = {top: 10, right: 10, bottom: 10, left: 10};
+        drawingAreaWidth = displayWidth;
+        drawingAreaHeight = displayHeight;
+        if (drawingAreaWidth < drawingAreaWidthMin) { drawingAreaWidth=drawingAreaWidthMin; };
+        if (drawingAreaHeight < drawingAreaHeightMin) { drawingAreaHeight=drawingAreaHeightMin; };
+        
+        networkAreaWidth = drawingAreaWidth; //* 0.618 - 1, // (drawingAreaWidth - 2*margin.left - margin.right) * 0.618,
+        networkAreaHeight = drawingAreaHeight - 1; // drawingAreaHeight - margin.top - margin.bottom,
+        
+        descriptorAreaWidth = 0; //drawingAreaWidth * 0.382 - 1, // (drawingAreaWidth - 2*margin.left - margin.right) * 0.382
+        descriptorAreaHeight = drawingAreaHeight - 1; // drawingAreaHeight - margin.top - margin.bottom,
+        
+        // Set size of drawing areas
+        div.style("width", drawingAreaWidth).style("height", drawingAreaHeight);
+        networkArea.attr("width", networkAreaWidth).attr("height", networkAreaHeight);
+        networkAreaBackground.attr("height", networkAreaHeight).attr("width", networkAreaWidth);
+        
+        //d3.select(".column-sidebar").attr("height", networkAreaHeight);
+      }
+      
+      setPlotSize();
+      
+      networkAreaContent = networkArea.append("g");
+      
+      /*
+      descriptorArea = div.append("svg")
+          .attr("id", "descriptorArea")
+          .attr("width", descriptorAreaWidth)
+          .attr("height", descriptorAreaHeight);
+      descriptorAreaBackground = descriptorArea.append("rect")
+          .attr("id", "networkAreaBackground")
+          .attr("height", descriptorAreaHeight)
+          .attr("width", descriptorAreaWidth)
+          .style("fill", "lightblue");
+      descriptorAreaContent = descriptorArea.append("g");
+      
+      descriptorAreaContent.append("circle")
+          .attr("r", 30)
+          .attr("cx", 40)
+          .attr("cy", 40)
+          .attr("fill", "black");
+      descriptorAreaContent.append("circle")
+          .attr("r", 30)
+          .attr("cx", descriptorAreaWidth-40)
+          .attr("cy", descriptorAreaHeight-40)
+          .attr("fill", "black");
+      */
+      
+      
+      // Zoom and pan behaviour
+      var zoomNetworkArea = d3.zoom()
+          .scaleExtent([0.04, 25])
+          .on("zoom", zoomedNetworkArea);
+      function zoomedNetworkArea() {
+        networkAreaContent.attr("transform", d3.event.transform)
+        //descriptorAreaContent.attr("transform", d3.event.transform)
+      }
+      networkArea.call(zoomNetworkArea)
+          .on("dblclick.zoom", null);
+      
+      
+      // Drag behaviour
+      // a) Drawing area
+      /*
+      var dragNetworkArea = d3.drag()
+            .on("drag", dragNetworkAreaActive);
+      function dragNetworkAreaActive(d) {
+        // Get current x and y positions
+        var x = d3.event.x;
+        var y = d3.event.y;
+        
+        // Translate the selection to the current x and y position
+        d3.select(this)
+            .attr("transform", "translate(" + x + "," + y + ")");
+      }
+      networkArea.call(dragNetworkArea);
+      */
+      
+      // b) Network nodes
+      var dragNetworkNodes = d3.drag()
+           .on("start", dragNetworkNodeStarted)
+           .on("drag", dragNetworkNodeActive)
+           .on("end", dragNetworkNodeEnded);
+      function dragNetworkNodeStarted(d) {
+        if (!d3.event.active) {
+          simulation.alphaTarget(0.2).restart();
+        }
+        d.fx = d.x;
+        d.fy = d.y;
+      }
+      function dragNetworkNodeActive(d) {
+        d.fx = d3.event.x;
+        d.fy = d3.event.y;
+        d3.select(this).classed("fixed", d.fixed = true);
+      }
+      function dragNetworkNodeEnded(d) {
+        if (!d3.event.active) {
+          simulation.alphaTarget(0);
+        }
+        var checkbox = d3.select("#sticky");
+        if (!checkbox.property("checked")) {
+          d.fx = null;
+          d.fy = null;
+        }
+      }
+      
+      // Sticky behavior for graph nodes
+      // - https://bl.ocks.org/mbostock/3750558
+      // - https://stackoverflow.com/questions/39168274/d3-js-version-4-make-nodes-sticky
+      function dblclickGraphNode(d) {
+        var checkbox = d3.select("#sticky");
+        if (checkbox.property("checked")) {
+          d.fx = null;
+          d.fy = null;
+        }
+      }
+      
+      // Mouseover and Mouseout behavior for graph nodes
+      // - http://bl.ocks.org/mbostock/2706022
+      // - https://stackoverflow.com/questions/14167863/how-can-i-bring-a-circle-to-the-front-with-d3
+      d3.selection.prototype.moveToFront = function() {
+        return this.each(function(){
+          this.parentNode.appendChild(this);
+        });
+      };
+      function mouseoverGraphNode() {
+        var checkbox = d3.select("#resize");
+        if (checkbox.property("checked")) {
+          var graphNode = d3.select(this);
+          graphNode.moveToFront();
+          graphNode.select("circle").transition()
+              .duration(200)
+              .attr("stroke", "black")
+              .attr("stroke-width","1.5")
+              //.attr("fill", "#fff")
+              .attr("r", 28);
+          graphNode.select("image").transition()
+              .duration(200)
+              .attr("x", "-20")
+              .attr("y", "-20")
+              .attr("width", 40)
+              .attr("height", 40);
+        }
+      }
+      function mouseoutGraphNode() {
+        var checkbox = d3.select("#resize");
+        if (checkbox.property("checked")) {
+          var graphNode = d3.select(this);
+          graphNode.select("circle").transition()
+              .duration(1000)
+              .attr("stroke", "black")
+              .attr("stroke-width","0")
+              .attr("r", 14);
+          graphNode.select("image").transition()
+              .duration(1000)
+              .attr("x", "-10")
+              .attr("y", "-10")
+              .attr("width", 20)
+              .attr("height", 20);
+        }
+      }
+      
+      
+      // Force-directed layout
+      var simulation = d3.forceSimulation()
+          .force("link", d3.forceLink().id(function(d) { return d.id; }))
+          .force("charge", d3.forceManyBody().strength(-100))
+          .force("center", d3.forceCenter(networkAreaWidth/2, networkAreaHeight/2));
+
+
+      // Load data asynchronously from JSON file
+      networkFilename = "derivation_graph.json"
+      d3.json(networkFilename, function(error, data) {
+        if (error) throw error;
+        
+        // Parse data
+        var networkNodeData = data.graph.nodes;   
+        var networkGraphNodeData = networkNodeData.filter(function(d) {
+          return d.type == "graph"});
+        var networkHyperedgeNodeData = networkNodeData.filter(function(d) {
+          return d.type == "hyperedge"});
+        var networkEdgeData = data.graph.edges;
+
+        // Create edges
+        var networkEdgesGroup = networkAreaContent.append("g")
+          .attr("class", "network-edges-group");
+        
+        var networkEdgeLine = networkEdgesGroup
+          .selectAll("line")
+          .data(networkEdgeData)
+          .enter().append("line").attr("class", "network-edge-line");
+        
+        // Create nodes
+        // a) Hyperedge nodes
+        var hyperedgeNodeWidth = 10;
+        var hyperedgeNodeHeight = 10;
+        
+        var networkHyperedgeNodesGroup = networkAreaContent.append("g")
+          .attr("class", "network-hyperedge-nodes-group");
+        
+        var networkHyperedgeNodeRect = networkHyperedgeNodesGroup 
+          .selectAll("rect")
+          .data(networkHyperedgeNodeData)
+          .enter().append("rect")
+          .attr("class", "network-hyperedge-node-rect");
+        
+        // b) Graph nodes
+        var networkGraphNodesGroup = networkAreaContent.append("g")
+          .attr("class", "network-graph-nodes-group");
+        
+        var networkGraphNodeGroup = networkGraphNodesGroup
+          .selectAll("g")
+          .data(networkGraphNodeData)
+          .enter().append("g").attr("class", "network-graph-node-group");
+      
+        var networkGraphNodeCircle = networkGraphNodeGroup.append("circle")
+          .attr("class", "network-graph-node-circle");
+        
+        // Add text to nodes
+        // networkHyperedgeNodeRect.append("title").text(function(d) { return d.id; });
+        // networkGraphNodeCircle.append("title").text(function(d) { return d.id; });
+        
+        // Add images to graph nodes with a valid image URL
+        var networkGraphNodeGroupWithImage = networkGraphNodeGroup.filter(function(d) {
+          return d.metadata.img != "None";
+        });
+        
+        networkGraphNodeGroupWithImage.append("image")
+            .attr("href", function(d) {return "molecules/" + d.metadata.img;})
+            .attr("x", "-10")
+            .attr("y", "-10")
+            .attr("width", 20)
+            .attr("height", 20);
+        
+        // Add behavior to nodes
+        networkHyperedgeNodeRect
+          .on("mouseover", mouseoverGraphNode)
+          .on("mouseout", mouseoutGraphNode)
+          .on("dblclick", dblclickGraphNode)
+          .call(dragNetworkNodes);
+        
+        networkGraphNodeGroup
+          .on("mouseover", mouseoverGraphNode)
+          .on("mouseout", mouseoutGraphNode)
+          .on("dblclick", dblclickGraphNode)
+          .call(dragNetworkNodes);
+       
+        
+        
+        
+        // Embed svg from other file
+        // https://stackoverflow.com/questions/5451135/embed-svg-in-svg
+        // Better solution? https://stackoverflow.com/questions/21209549/embed-and-refer-to-an-external-svg-via-d3-and-or-javascript
+        
+        /* works, exported svg contains references to other svgs -> needs to be in same path */
+
+        /*
+        imgGraphNodeGroup.append("use") // fails
+            .attr("href", function(d) {return "molecules/" + d.metadata.indigo_svg;})
+            .attr("width", 20)
+            .attr("height", 20);
+        */
+        
+        /*
+        imgGraphNodeGroup.append("object") // fails
+            .attr("data", function(d) {return "molecules/" + d.metadata.indigo_svg;})
+            .attr("type", "image/svg+xml")
+            .attr("x", "-10")
+            .attr("y", "-10")
+            .attr("width", 20)
+            .attr("height", 20);
+        */
+        
+        function setDefaultPlotStyle() {
+          backgroundColor = "#607c82";
+          d3.select("#network-area-background")
+              .style("fill", backgroundColor);
+          $("#colorpicker-network-background").spectrum("set", backgroundColor);
+          
+          edgeColor = "black";
+          d3.selectAll(".network-edge-line")
+              .style("stroke-width", 0.1)
+              .style("stroke", edgeColor);
+          $("#colorpicker-network-edges").spectrum("set", edgeColor);
+          
+          hyperedgeNodeColor = "black";
+          d3.selectAll(".network-hyperedge-node-rect")
+              .attr("width", 10)
+              .attr("height", 10)
+              .style("fill", hyperedgeNodeColor);
+          $("#colorpicker-network-hyperedge-nodes").spectrum("set", hyperedgeNodeColor);
+          
+          graphNodeColor = "white";
+          d3.selectAll(".network-graph-node-circle")
+              .attr("r", 14)
+              .style("fill", graphNodeColor);
+          $("#colorpicker-network-graph-nodes").spectrum("set", graphNodeColor);
+        }
+        setDefaultPlotStyle();
+        
+        
+        simulation
+          .nodes(networkNodeData)
+          .on("tick", ticked);
+
+        simulation.force("link")
+          .links(networkEdgeData);
+
+        function ticked() {
+          networkEdgeLine
+            .attr("x1", function(d) { return d.source.x; })
+            .attr("y1", function(d) { return d.source.y; })
+            .attr("x2", function(d) { return d.target.x; })
+            .attr("y2", function(d) { return d.target.y; });
+
+          networkGraphNodeGroup
+            .attr("transform", function(d) { return "translate(" + d.x + "," + d.y + ")"});
+            /*
+            .attr("x", function(d) { return d.x; })
+            .attr("y", function(d) { return d.y; });
+            */
+          
+          networkHyperedgeNodeRect
+            .attr("x", function(d) { return d.x - 10/2; })
+            .attr("y", function(d) { return d.y - 10/2; });
+        }
+        
+      });
+
+      function mapColorNames(shortName) {
+        // https://www.w3.org/TR/SVG/types.html#ColorKeywords
+        var shortToLongName = {"r":"red",
+                               "y":"yellow",
+                               "g":"green",
+                               "b":"blue"};
+        if (shortName in shortToLongName) {
+          return shortToLongName[shortName];
+        } else {
+          return "gray";
+        }
+      }
+      
+      
+    </script>
+  </body>
+</html>
